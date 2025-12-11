@@ -367,6 +367,20 @@
             color: #92400e;
         }
 
+        .form-status {
+            margin-top: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .form-status.success {
+            color: #047857;
+        }
+
+        .form-status.error {
+            color: #b91c1c;
+        }
+
         /* Sticky CTA */
         .sticky-cta {
             position: fixed;
@@ -669,6 +683,7 @@
             <div class="container">
                 <h2 class="section-title" id="form-title">Déjanos tus datos y te llamamos</h2>
                 <p style="text-align: center; color: var(--text-medium); margin: -1rem auto 1.5rem; max-width: 650px;">Gracias por tu interés, te llamaremos lo más pronto posible.</p>
+                <form id="plan-form" novalidate style="display: grid; gap: 1rem; max-width: 700px; margin: 0 auto;">
                 <form id="plan-form" action="mailto:fc@nexo-capital.es" method="post" enctype="text/plain" style="display: grid; gap: 1rem; max-width: 700px; margin: 0 auto;">
                     <label style="display: flex; flex-direction: column; gap: 0.35rem; font-weight: 600; color: var(--text-dark);">
                         Nombre completo
@@ -696,6 +711,7 @@
                         </select>
                     </label>
                     <button type="submit" class="btn btn-primary btn-lg" style="justify-content: center;">Enviar datos</button>
+                    <div class="form-status" id="form-status" aria-live="polite"></div>
                 </form>
             </div>
         </section>
@@ -745,6 +761,8 @@
         const planSelect = document.getElementById('plan-select');
         const formSection = document.getElementById('formulario');
         const planForm = document.getElementById('plan-form');
+        const submitButton = planForm?.querySelector('button[type="submit"]');
+        const statusMessage = document.getElementById('form-status');
 
         planButtons.forEach((button) => {
             button.addEventListener('click', (event) => {
@@ -760,6 +778,14 @@
         });
 
         if (planForm) {
+            planForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                if (statusMessage) {
+                    statusMessage.textContent = '';
+                    statusMessage.className = 'form-status';
+                }
+
             planForm.addEventListener('submit', (event) => {
                 event.preventDefault();
 
@@ -775,6 +801,39 @@
                     return;
                 }
 
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Enviando...';
+                }
+
+                try {
+                    const response = await fetch('/api/leads', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nombre, telefono, email, codigoPostal, plan })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('No se pudo guardar la solicitud');
+                    }
+
+                    planForm.reset();
+
+                    if (statusMessage) {
+                        statusMessage.textContent = 'Gracias por tu interés, le contactaremos pronto.';
+                        statusMessage.classList.add('success');
+                    }
+                } catch (error) {
+                    if (statusMessage) {
+                        statusMessage.textContent = 'No pudimos enviar tus datos. Por favor, inténtalo de nuevo.';
+                        statusMessage.classList.add('error');
+                    }
+                } finally {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Enviar datos';
+                    }
+                }
                 const subject = encodeURIComponent('Solicitud de plan mensual');
                 const bodyLines = [
                     `Nombre: ${nombre}`,
